@@ -70,6 +70,16 @@ app.add_middleware(
 )
 
 
+@app.get("/")
+def root() -> dict[str, str]:
+    return {
+        "service": "public-jobs-tracker-api",
+        "status": "ok",
+        "docs": "/docs",
+        "postings": "/api/postings",
+    }
+
+
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
