@@ -95,3 +95,49 @@ npm run dev
 ```
 
 Per defecte la UI consumeix `http://localhost:8000`.
+
+## Deploy Vercel (API + Web)
+
+### 1) Projecte API (Vercel)
+- Importa el repo a Vercel i crea projecte `feinapublica-api`.
+- Root directory: `/`.
+- Variable d'entorn obligatoria:
+  - `DATABASE_URL` (PostgreSQL en produccio).
+- L'entrypoint es `api/index.py`.
+
+Endpoints util:
+- `/`
+- `/health`
+- `/docs`
+- `/api/postings`
+
+### 2) Projecte Web (Vercel)
+- Crea segon projecte `feinapublica-web` amb el mateix repo.
+- Root directory: `web-ts`.
+- Variable d'entorn:
+  - `VITE_API_BASE_URL=https://feinapublica.vercel.app`
+
+### 3) Primera carrega de dades (una sola vegada)
+Executa localment contra la mateixa `DATABASE_URL` de produccio:
+```powershell
+cd C:\Users\DatAd\codex_projects\ocupacio_publica\public-jobs-tracker
+$env:PYTHONPATH="src"
+$env:DATABASE_URL="postgresql+psycopg://USER:PASS@HOST:5432/DB"
+& "C:\Program Files\MySQL\MySQL Shell 8.0\lib\Python3.13\Lib\venv\scripts\nt\python.exe" -m alembic upgrade head
+$env:CIDO_FILTER_PUBLICATION_FROM="2026-01-01"
+$env:CIDO_MAX_PAGES="0"
+$env:CIDO_PAGE_LIMIT="100"
+& "C:\Program Files\MySQL\MySQL Shell 8.0\lib\Python3.13\Lib\venv\scripts\nt\python.exe" scripts/run_ingestion.py
+```
+
+### 4) Ingesta periodica automatica (GitHub Actions)
+S'ha afegit workflow `.github/workflows/ingestion-cron.yml`:
+- Programat cada 48h.
+- Te `workflow_dispatch` manual.
+
+Configura a GitHub:
+- Secret: `DATABASE_URL`
+- Variables opcionals:
+  - `CIDO_FILTER_PUBLICATION_FROM` (default `2026-01-01`)
+  - `CIDO_PAGE_LIMIT` (default `100`)
+  - `CIDO_MAX_PAGES` (default `0` = sense limit)
