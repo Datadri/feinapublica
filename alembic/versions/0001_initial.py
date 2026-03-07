@@ -19,11 +19,6 @@ def upgrade() -> None:
     change_type = sa.Enum("NEW", "UPDATED", "CLOSED", "DEADLINE_CHANGED", name="changetype")
     user_posting_status = sa.Enum("pendent", "revisada", "interessa", "descartada", "aplicada", name="userpostingstatus")
 
-    bind = op.get_bind()
-    if bind.dialect.name != "sqlite":
-        run_status.create(bind, checkfirst=True)
-        change_type.create(bind, checkfirst=True)
-        user_posting_status.create(bind, checkfirst=True)
 
     op.create_table(
         "source_job_run",
@@ -71,7 +66,7 @@ def upgrade() -> None:
         sa.Column("first_seen_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("last_seen_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("last_changed_at", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.text("1")),
+        sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.text("true")),
         sa.Column("closed_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
@@ -125,7 +120,7 @@ def upgrade() -> None:
         sa.Column("user_id", sa.Integer(), sa.ForeignKey("user.id"), nullable=False),
         sa.Column("name", sa.String(length=255), nullable=False),
         sa.Column("filters_json", sa.JSON(), nullable=False),
-        sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.text("1")),
+        sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.text("true")),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("last_used_at", sa.DateTime(timezone=True), nullable=True),
     )
