@@ -44,3 +44,10 @@ export type FilterOptions = {
   status: string[];
   user_status: string[];
 };
+
+
+export type PostingKpis = {
+  total_offers: number;
+  open_offers: number;
+  organizations_with_offers: number;
+};

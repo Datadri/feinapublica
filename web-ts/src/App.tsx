@@ -1,6 +1,6 @@
 ﻿import { useEffect, useMemo, useState } from "react";
-import { fetchOptions, fetchPostingDetail, fetchPostings } from "./api";
-import type { FilterOptions, Posting, PostingChange } from "./types";
+import { fetchOptions, fetchPostingDetail, fetchPostings, fetchPostingsKpis } from "./api";
+import type { FilterOptions, Posting, PostingChange, PostingKpis } from "./types";
 
 function fmt(value: string | number | null | undefined): string {
   if (value === null || value === undefined || value === "") return "-";
@@ -11,6 +11,7 @@ export default function App() {
   const [options, setOptions] = useState<FilterOptions>({ organization: [], territory: [], staff_type: [], status: [], user_status: [] });
   const [items, setItems] = useState<Posting[]>([]);
   const [total, setTotal] = useState(0);
+  const [kpis, setKpis] = useState<PostingKpis>({ total_offers: 0, open_offers: 0, organizations_with_offers: 0 });
   const [selected, setSelected] = useState<Posting | null>(null);
   const [changes, setChanges] = useState<PostingChange[]>([]);
 
@@ -25,7 +26,7 @@ export default function App() {
     void fetchOptions().then(setOptions);
   }, []);
 
-  const params = useMemo(() => {
+  const filterParams = useMemo(() => {
     const p = new URLSearchParams();
     if (q) p.set("q", q);
     if (organization) p.set("organization", organization);
@@ -33,9 +34,14 @@ export default function App() {
     if (staffType) p.set("staff_type", staffType);
     if (status) p.set("status", status);
     if (minPublicationDate) p.set("min_publication_date", minPublicationDate);
-    p.set("limit", "20");
     return p;
   }, [q, organization, territory, staffType, status, minPublicationDate]);
+
+  const params = useMemo(() => {
+    const p = new URLSearchParams(filterParams);
+    p.set("limit", "20");
+    return p;
+  }, [filterParams]);
 
   useEffect(() => {
     void fetchPostings(params).then((res) => {
@@ -43,6 +49,10 @@ export default function App() {
       setTotal(res.total);
     });
   }, [params]);
+
+  useEffect(() => {
+    void fetchPostingsKpis(filterParams).then(setKpis);
+  }, [filterParams]);
 
   async function openDetail(item: Posting) {
     setSelected(item);
@@ -56,6 +66,21 @@ export default function App() {
         <h1>FeinaPublica.cat</h1>
         <p>El teu portal d'ocupació pública de referencia</p>
       </header>
+
+      <section className="kpi-grid">
+        <article className="card kpi-card">
+          <div className="kpi-label">Número total d'ofertes</div>
+          <div className="kpi-value">{kpis.total_offers}</div>
+        </article>
+        <article className="card kpi-card">
+          <div className="kpi-label">Ofertes obertes</div>
+          <div className="kpi-value">{kpis.open_offers}</div>
+        </article>
+        <article className="card kpi-card">
+          <div className="kpi-label">Organismes amb ofertes</div>
+          <div className="kpi-value">{kpis.organizations_with_offers}</div>
+        </article>
+      </section>
 
       <section className="filters card">
         <input placeholder="Text lliure" value={q} onChange={(e) => setQ(e.target.value)} />
@@ -84,20 +109,20 @@ export default function App() {
           <table>
             <thead>
               <tr>
-                <th>id</th>
-                <th>source_record_id</th>
-                <th>title</th>
-                <th>organization</th>
-                <th>territory</th>
-                <th>staff_type</th>
-                <th>status</th>
-                <th>publication_date</th>
-                <th>deadline_date</th>
-                <th>num_places</th>
-                <th>expedient</th>
-                <th>detail_url</th>
-                <th>url_web</th>
-                <th>last_changed_at</th>
+                <th>Identificador</th>
+                <th>Identificador del registre d'origen</th>
+                <th>Títol de la convocatòria</th>
+                <th>Organisme o entitat convocant</th>
+                <th>Àmbit territorial</th>
+                <th>Tipus de personal</th>
+                <th>Estat de la convocatòria</th>
+                <th>Data de publicació</th>
+                <th>Data límit de presentació</th>
+                <th>Nombre de places convocades</th>
+                <th>Número d'expedient</th>
+                <th>Enllaç al detall de la convocatòria</th>
+                <th>Enllaç a la web oficial</th>
+                <th>Data de l'última actualització</th>
               </tr>
             </thead>
             <tbody>
@@ -178,6 +203,5 @@ export default function App() {
     </div>
   );
 }
-
 
 

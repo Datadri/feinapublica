@@ -81,6 +81,31 @@ a { color: var(--accent); text-decoration: none; font-weight: 700; }
 hr { border: 0; border-top: 1px solid var(--line); margin: 14px 0; }
 
 @media (max-width: 980px) {
+  .kpi-grid { grid-template-columns: 1fr; }
   .filters { grid-template-columns: repeat(2, minmax(120px, 1fr)); }
   .layout { grid-template-columns: 1fr; }
+}
+
+.kpi-grid {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.kpi-card {
+  padding: 16px;
+}
+
+.kpi-label {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.kpi-value {
+  margin-top: 6px;
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 2rem;
+  line-height: 1;
+  color: var(--accent);
 }

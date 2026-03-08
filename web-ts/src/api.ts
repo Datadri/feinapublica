@@ -1,4 +1,4 @@
-﻿import type { FilterOptions, Posting, PostingChange } from "./types";
+﻿import type { FilterOptions, Posting, PostingChange, PostingKpis } from "./types";
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? (import.meta.env.DEV ? "http://localhost:8000" : "")).trim();
 
@@ -19,5 +19,11 @@ export async function fetchPostingDetail(id: number): Promise<{ item: Posting | 
 
 export async function fetchRecentChanges(limit = 50): Promise<PostingChange[]> {
   const res = await fetch(`${API_BASE}/api/changes/recent?limit=${limit}`);
+  return res.json();
+}
+
+
+export async function fetchPostingsKpis(params: URLSearchParams): Promise<PostingKpis> {
+  const res = await fetch(`${API_BASE}/api/postings/kpis?${params.toString()}`);
   return res.json();
 }

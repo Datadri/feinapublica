@@ -59,6 +59,12 @@ class SavedSearchOut(BaseModel):
     is_active: bool
 
 
+class PostingKpisOut(BaseModel):
+    total_offers: int
+    open_offers: int
+    organizations_with_offers: int
+
+
 app = FastAPI(title="Public Jobs Tracker API", version="0.1.0")
 
 app.add_middleware(
@@ -85,6 +91,45 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
+
+
+def _build_postings_stmt(
+    session,
+    q: str | None,
+    organization: str | None,
+    territory: str | None,
+    staff_type: str | None,
+    status: str | None,
+    min_publication_date: date | None,
+    only_followed: bool,
+    user_email: str,
+):
+    stmt = select(JobPosting)
+
+    if only_followed:
+        user = session.scalar(select(User).where(User.email == user_email))
+        if user is None:
+            return None
+        stmt = stmt.join(UserFollowedPosting, UserFollowedPosting.posting_id == JobPosting.id).where(UserFollowedPosting.user_id == user.id)
+
+    if q:
+        like = f"%{q}%"
+        stmt = stmt.where(or_(JobPosting.title.ilike(like), JobPosting.summary.ilike(like), JobPosting.organization.ilike(like)))
+
+    if organization:
+        stmt = stmt.where(JobPosting.organization == organization)
+    if territory:
+        stmt = stmt.where(JobPosting.territory == territory)
+    if staff_type:
+        stmt = stmt.where(JobPosting.staff_type == staff_type)
+    if status:
+        stmt = stmt.where(JobPosting.status == status)
+    if min_publication_date:
+        stmt = stmt.where(JobPosting.publication_date >= min_publication_date)
+
+    return stmt
+
+
 @app.get("/api/postings")
 def list_postings(
     q: str | None = None,
@@ -99,28 +144,19 @@ def list_postings(
     limit: int = Query(default=100, ge=1, le=500),
 ) -> dict:
     with SessionLocal() as session:
-        stmt = select(JobPosting)
-
-        if only_followed:
-            user = session.scalar(select(User).where(User.email == user_email))
-            if user is None:
-                return {"items": [], "total": 0}
-            stmt = stmt.join(UserFollowedPosting, UserFollowedPosting.posting_id == JobPosting.id).where(UserFollowedPosting.user_id == user.id)
-
-        if q:
-            like = f"%{q}%"
-            stmt = stmt.where(or_(JobPosting.title.ilike(like), JobPosting.summary.ilike(like), JobPosting.organization.ilike(like)))
-
-        if organization:
-            stmt = stmt.where(JobPosting.organization == organization)
-        if territory:
-            stmt = stmt.where(JobPosting.territory == territory)
-        if staff_type:
-            stmt = stmt.where(JobPosting.staff_type == staff_type)
-        if status:
-            stmt = stmt.where(JobPosting.status == status)
-        if min_publication_date:
-            stmt = stmt.where(JobPosting.publication_date >= min_publication_date)
+        stmt = _build_postings_stmt(
+            session=session,
+            q=q,
+            organization=organization,
+            territory=territory,
+            staff_type=staff_type,
+            status=status,
+            min_publication_date=min_publication_date,
+            only_followed=only_followed,
+            user_email=user_email,
+        )
+        if stmt is None:
+            return {"items": [], "total": 0}
 
         total = session.scalar(select(func.count()).select_from(stmt.subquery())) or 0
         rows = session.scalars(stmt.order_by(desc(JobPosting.last_changed_at)).offset(offset).limit(limit)).all()
@@ -154,6 +190,50 @@ def list_postings(
             for row in rows
         ]
         return {"items": items, "total": total}
+
+@app.get("/api/postings/kpis")
+def postings_kpis(
+    q: str | None = None,
+    organization: str | None = None,
+    territory: str | None = None,
+    staff_type: str | None = None,
+    status: str | None = None,
+    min_publication_date: date | None = None,
+    only_followed: bool = False,
+    user_email: str = "demo@public-jobs-tracker.local",
+) -> dict:
+    with SessionLocal() as session:
+        stmt = _build_postings_stmt(
+            session=session,
+            q=q,
+            organization=organization,
+            territory=territory,
+            staff_type=staff_type,
+            status=status,
+            min_publication_date=min_publication_date,
+            only_followed=only_followed,
+            user_email=user_email,
+        )
+        if stmt is None:
+            return PostingKpisOut(total_offers=0, open_offers=0, organizations_with_offers=0).model_dump()
+
+        subq = stmt.subquery()
+        total_offers = session.scalar(select(func.count()).select_from(subq)) or 0
+
+        today = date.today()
+        open_offers = session.scalar(
+            select(func.count()).select_from(subq).where(subq.c.deadline_date.is_not(None), subq.c.deadline_date >= today)
+        ) or 0
+
+        organizations_with_offers = session.scalar(
+            select(func.count(func.distinct(subq.c.organization))).select_from(subq).where(subq.c.organization.is_not(None))
+        ) or 0
+
+        return PostingKpisOut(
+            total_offers=total_offers,
+            open_offers=open_offers,
+            organizations_with_offers=organizations_with_offers,
+        ).model_dump()
 
 
 @app.get("/api/postings/{posting_id}")
