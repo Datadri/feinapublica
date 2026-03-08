@@ -1,4 +1,4 @@
-name: ingestion-cron
+﻿name: ingestion-cron
 
 on:
   workflow_dispatch:
@@ -6,9 +6,9 @@ on:
       min_publication_date:
         description: "Optional min publication date (YYYY-MM-DD)"
         required: false
-        default: "2026-01-01"
+        default: "2025-01-01"
   schedule:
-    - cron: "0 5 */2 * *"
+    - cron: "0 5 * * *"
 
 permissions:
   contents: read
@@ -26,7 +26,7 @@ jobs:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
       CIDO_PAGE_LIMIT: ${{ vars.CIDO_PAGE_LIMIT || '100' }}
       CIDO_MAX_PAGES: ${{ vars.CIDO_MAX_PAGES || '0' }}
-      CIDO_FILTER_PUBLICATION_FROM: ${{ github.event.inputs.min_publication_date || vars.CIDO_FILTER_PUBLICATION_FROM || '2026-01-01' }}
+      CIDO_FILTER_PUBLICATION_FROM: ${{ github.event.inputs.min_publication_date || vars.CIDO_FILTER_PUBLICATION_FROM || '2025-01-01' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
