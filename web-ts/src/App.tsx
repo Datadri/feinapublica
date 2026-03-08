@@ -1,5 +1,5 @@
 ﻿import { useEffect, useMemo, useState } from "react";
-import { fetchOptions, fetchPostingDetail, fetchPostings, fetchRecentChanges } from "./api";
+import { fetchOptions, fetchPostingDetail, fetchPostings } from "./api";
 import type { FilterOptions, Posting, PostingChange } from "./types";
 
 function fmt(value: string | number | null | undefined): string {
@@ -11,7 +11,6 @@ export default function App() {
   const [options, setOptions] = useState<FilterOptions>({ organization: [], territory: [], staff_type: [], status: [], user_status: [] });
   const [items, setItems] = useState<Posting[]>([]);
   const [total, setTotal] = useState(0);
-  const [recent, setRecent] = useState<PostingChange[]>([]);
   const [selected, setSelected] = useState<Posting | null>(null);
   const [changes, setChanges] = useState<PostingChange[]>([]);
 
@@ -24,7 +23,6 @@ export default function App() {
 
   useEffect(() => {
     void fetchOptions().then(setOptions);
-    void fetchRecentChanges(30).then(setRecent);
   }, []);
 
   const params = useMemo(() => {
@@ -35,7 +33,7 @@ export default function App() {
     if (staffType) p.set("staff_type", staffType);
     if (status) p.set("status", status);
     if (minPublicationDate) p.set("min_publication_date", minPublicationDate);
-    p.set("limit", "200");
+    p.set("limit", "20");
     return p;
   }, [q, organization, territory, staffType, status, minPublicationDate]);
 
@@ -55,8 +53,8 @@ export default function App() {
   return (
     <div className="app-shell">
       <header className="hero">
-        <h1>Public Jobs Tracker</h1>
-        <p>Visualitzacio moderna en TypeScript per seguir convocatories 2026+ de CIDO.</p>
+        <h1>FeinaPublica.cat</h1>
+        <p>El teu portal d'ocupació pública de referencia</p>
       </header>
 
       <section className="filters card">
@@ -127,15 +125,6 @@ export default function App() {
 
         <aside className="stack">
           <section className="card">
-            <div className="section-title">Novetats</div>
-            <ul className="changes">
-              {recent.map((chg) => (
-                <li key={chg.id}><strong>{chg.change_type}</strong> - #{chg.posting_id}</li>
-              ))}
-            </ul>
-          </section>
-
-          <section className="card">
             <div className="section-title">Detall</div>
             {selected ? (
               <>
@@ -189,3 +178,6 @@ export default function App() {
     </div>
   );
 }
+
+
+
