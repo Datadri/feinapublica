@@ -45,4 +45,38 @@ jobs:
         run: alembic upgrade head
 
       - name: Run ingestion
+        id: ingest
+        continue-on-error: true
         run: python scripts/run_ingestion.py
+
+      - name: Build ingestion summary
+        id: summary
+        if: always()
+        run: |
+          python scripts/build_ingestion_summary.py > ingestion_summary.txt
+          echo "summary<<EOF" >> $GITHUB_OUTPUT
+          cat ingestion_summary.txt >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Send summary email
+        if: always() && secrets.SMTP_SERVER != '' && secrets.SMTP_USERNAME != '' && secrets.SMTP_PASSWORD != '' && secrets.MAIL_TO != ''
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: ${{ secrets.SMTP_SERVER }}
+          server_port: ${{ secrets.SMTP_PORT || '587' }}
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          subject: "[public-jobs-tracker] Daily ingestion ${{ steps.ingest.outcome }}"
+          to: ${{ secrets.MAIL_TO }}
+          from: ${{ secrets.MAIL_FROM || secrets.SMTP_USERNAME }}
+          secure: false
+          body: |
+            Workflow status: ${{ steps.ingest.outcome }}
+
+            ${{ steps.summary.outputs.summary }}
+
+      - name: Mark workflow failed if ingestion failed
+        if: steps.ingest.outcome != 'success'
+        run: |
+          echo "Ingestion step failed"
+          exit 1
