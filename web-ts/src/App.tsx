@@ -63,8 +63,11 @@ export default function App() {
   return (
     <div className="app-shell">
       <header className="hero">
-        <h1>FeinaPublica.cat</h1>
-        <p>El teu portal d'ocupació pública de referencia</p>
+        <img className="hero-logo" src="/feinapublica.cat.png" alt="Logo FeinaPublica.cat" />
+        <div>
+          <h1>FeinaPublica.cat</h1>
+          <p>El teu portal d'ocupació pública de referencia</p>
+        </div>
       </header>
 
       <section className="kpi-grid">
@@ -203,5 +206,4 @@ export default function App() {
     </div>
   );
 }
-
 
