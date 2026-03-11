@@ -2,6 +2,9 @@ import logging
 import os
 from dataclasses import dataclass
 from functools import lru_cache
+from urllib.parse import quote
+
+from sqlalchemy.engine.url import make_url
 
 DEFAULT_DATABASE_URL = "sqlite:///./public_jobs_tracker.db"
 
@@ -28,6 +31,38 @@ def _env_int(name: str, default: int) -> int:
         return default
 
 
+def _is_valid_sqlalchemy_url(url: str) -> bool:
+    try:
+        make_url(url)
+        return True
+    except Exception:
+        return False
+
+
+def _encode_credentials_if_needed(url: str) -> str:
+    if "://" not in url or "@" not in url:
+        return url
+
+    scheme, rest = url.split("://", 1)
+    if "/" in rest:
+        auth_host, tail = rest.split("/", 1)
+        tail = "/" + tail
+    else:
+        auth_host, tail = rest, ""
+
+    if "@" not in auth_host:
+        return url
+
+    auth, host = auth_host.rsplit("@", 1)
+    if ":" in auth:
+        user, password = auth.split(":", 1)
+        auth_encoded = f"{quote(user, safe='')}:{quote(password, safe='')}"
+    else:
+        auth_encoded = quote(auth, safe="")
+
+    return f"{scheme}://{auth_encoded}@{host}{tail}"
+
+
 def normalize_database_url(raw_url: str | None) -> str:
     if raw_url is None:
         return DEFAULT_DATABASE_URL
@@ -36,11 +71,22 @@ def normalize_database_url(raw_url: str | None) -> str:
     if not url:
         return DEFAULT_DATABASE_URL
 
+    # Remove accidental surrounding quotes from CI secrets.
+    if len(url) >= 2 and ((url[0] == '"' and url[-1] == '"') or (url[0] == "'" and url[-1] == "'")):
+        url = url[1:-1].strip()
+
     # Use psycopg3 driver in SQLAlchemy for PostgreSQL URLs.
     if url.startswith("postgres://"):
-        return "postgresql+psycopg://" + url[len("postgres://") :]
-    if url.startswith("postgresql://"):
-        return "postgresql+psycopg://" + url[len("postgresql://") :]
+        url = "postgresql+psycopg://" + url[len("postgres://") :]
+    elif url.startswith("postgresql://"):
+        url = "postgresql+psycopg://" + url[len("postgresql://") :]
+
+    if _is_valid_sqlalchemy_url(url):
+        return url
+
+    encoded = _encode_credentials_if_needed(url)
+    if _is_valid_sqlalchemy_url(encoded):
+        return encoded
 
     return url
 
