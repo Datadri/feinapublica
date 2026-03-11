@@ -1,4 +1,4 @@
-﻿name: ingestion-cron
+name: ingestion-cron
 
 on:
   workflow_dispatch:
