@@ -3,6 +3,8 @@ import os
 from dataclasses import dataclass
 from functools import lru_cache
 
+DEFAULT_DATABASE_URL = "sqlite:///./public_jobs_tracker.db"
+
 
 @dataclass(frozen=True)
 class Settings:
@@ -26,11 +28,28 @@ def _env_int(name: str, default: int) -> int:
         return default
 
 
+def normalize_database_url(raw_url: str | None) -> str:
+    if raw_url is None:
+        return DEFAULT_DATABASE_URL
+
+    url = raw_url.strip()
+    if not url:
+        return DEFAULT_DATABASE_URL
+
+    # Use psycopg3 driver in SQLAlchemy for PostgreSQL URLs.
+    if url.startswith("postgres://"):
+        return "postgresql+psycopg://" + url[len("postgres://") :]
+    if url.startswith("postgresql://"):
+        return "postgresql+psycopg://" + url[len("postgresql://") :]
+
+    return url
+
+
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
     return Settings(
         app_env=os.getenv("APP_ENV", "dev"),
-        database_url=os.getenv("DATABASE_URL", "sqlite:///./public_jobs_tracker.db"),
+        database_url=normalize_database_url(os.getenv("DATABASE_URL")),
         cido_base_url=os.getenv("CIDO_BASE_URL", "https://api.diba.cat/dadesobertes/cido/v1"),
         cido_timeout_seconds=_env_int("CIDO_TIMEOUT_SECONDS", 30),
         cido_page_limit=_env_int("CIDO_PAGE_LIMIT", 100),

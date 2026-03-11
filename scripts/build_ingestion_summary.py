@@ -5,6 +5,8 @@ from datetime import datetime, timezone
 
 from sqlalchemy import create_engine, text
 
+from public_jobs_tracker.config import normalize_database_url
+
 
 def _fmt_dt(value):
     if value is None:
@@ -17,7 +19,7 @@ def _fmt_dt(value):
 
 
 def main() -> None:
-    database_url = os.environ["DATABASE_URL"]
+    database_url = normalize_database_url(os.getenv("DATABASE_URL"))
     engine = create_engine(database_url)
 
     with engine.connect() as conn:
