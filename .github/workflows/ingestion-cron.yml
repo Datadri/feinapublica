@@ -24,9 +24,16 @@ jobs:
     env:
       PYTHONPATH: src
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
-      CIDO_PAGE_LIMIT: ${{ vars.CIDO_PAGE_LIMIT || '100' }}
-      CIDO_MAX_PAGES: ${{ vars.CIDO_MAX_PAGES || '0' }}
-      CIDO_FILTER_PUBLICATION_FROM: ${{ github.event.inputs.min_publication_date || vars.CIDO_FILTER_PUBLICATION_FROM || '2025-01-01' }}
+      CIDO_PAGE_LIMIT: ${{ vars.CIDO_PAGE_LIMIT }}
+      CIDO_MAX_PAGES: ${{ vars.CIDO_MAX_PAGES }}
+      CIDO_FILTER_PUBLICATION_FROM: ${{ github.event.inputs.min_publication_date }}
+      CIDO_FILTER_PUBLICATION_FROM_DEFAULT: ${{ vars.CIDO_FILTER_PUBLICATION_FROM }}
+      SMTP_SERVER: ${{ secrets.SMTP_SERVER }}
+      SMTP_PORT: ${{ secrets.SMTP_PORT }}
+      SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+      SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+      MAIL_TO: ${{ secrets.MAIL_TO }}
+      MAIL_FROM: ${{ secrets.MAIL_FROM }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -47,7 +54,12 @@ jobs:
       - name: Run ingestion
         id: ingest
         continue-on-error: true
-        run: python scripts/run_ingestion.py
+        run: |
+          export CIDO_PAGE_LIMIT="${CIDO_PAGE_LIMIT:-100}"
+          export CIDO_MAX_PAGES="${CIDO_MAX_PAGES:-0}"
+          export CIDO_FILTER_PUBLICATION_FROM="${CIDO_FILTER_PUBLICATION_FROM:-$CIDO_FILTER_PUBLICATION_FROM_DEFAULT}"
+          export CIDO_FILTER_PUBLICATION_FROM="${CIDO_FILTER_PUBLICATION_FROM:-2025-01-01}"
+          python scripts/run_ingestion.py
 
       - name: Build ingestion summary
         id: summary
@@ -59,16 +71,16 @@ jobs:
           echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Send summary email
-        if: always() && secrets.SMTP_SERVER != '' && secrets.SMTP_USERNAME != '' && secrets.SMTP_PASSWORD != '' && secrets.MAIL_TO != ''
+        if: always() && env.SMTP_SERVER != '' && env.SMTP_USERNAME != '' && env.SMTP_PASSWORD != '' && env.MAIL_TO != ''
         uses: dawidd6/action-send-mail@v3
         with:
-          server_address: ${{ secrets.SMTP_SERVER }}
-          server_port: ${{ secrets.SMTP_PORT || '587' }}
-          username: ${{ secrets.SMTP_USERNAME }}
-          password: ${{ secrets.SMTP_PASSWORD }}
+          server_address: ${{ env.SMTP_SERVER }}
+          server_port: ${{ env.SMTP_PORT || '587' }}
+          username: ${{ env.SMTP_USERNAME }}
+          password: ${{ env.SMTP_PASSWORD }}
           subject: "[public-jobs-tracker] Daily ingestion ${{ steps.ingest.outcome }}"
-          to: ${{ secrets.MAIL_TO }}
-          from: ${{ secrets.MAIL_FROM || secrets.SMTP_USERNAME }}
+          to: ${{ env.MAIL_TO }}
+          from: ${{ env.MAIL_FROM || env.SMTP_USERNAME }}
           secure: false
           body: |
             Workflow status: ${{ steps.ingest.outcome }}
